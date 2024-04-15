@@ -22,7 +22,7 @@ def find_best_answer(question):
     best_match_index = similarity_scores.argmax()
     
     # Проверка порога сходства
-    similarity_threshold = 0.8  # Задайте подходящее значение порога
+    similarity_threshold = 0.5  # Задайте подходящее значение порога
     if similarity_scores[0, best_match_index] < similarity_threshold:
         category = 'Other'
         answer = 'Redirect to Human'
@@ -45,7 +45,7 @@ def process_question(question):
     
     # Если ответ не найден, перенаправить запрос живому куратору
     if answer == 'Redirect to Human':
-        st.write("Извините, я не могу ответить на ваш вопрос. Пожалуйста, обратитесь к живому куратору.")
+        st.write("Извините, я не могу ответить на ваш вопрос. Пожалуйста, обратитесь к живому куратору Тимофею.")
     else:
         st.write(answer)
 
