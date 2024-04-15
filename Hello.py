@@ -1,51 +1,58 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import streamlit as st
-from streamlit.logger import get_logger
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-LOGGER = get_logger(__name__)
+# Загрузка базы знаний кураторов
+kb_data = pd.read_csv('curator_knowledge_base.csv', sep=';', encoding='utf-8')
 
+print(kb_data)
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
-    )
+# Функция для поиска наиболее подходящего ответа
+def find_best_answer(question):
+    # Векторизация вопроса и базы знаний
+    vectorizer = TfidfVectorizer()
+    question_vec = vectorizer.fit_transform([question])
+    kb_vec = vectorizer.transform(kb_data['Question'])
+    
+    # Вычисление косинусной близости между вопросом и базой знаний
+    similarity_scores = cosine_similarity(question_vec, kb_vec)
+    print (similarity_scores)
+    # Получение индекса наиболее похожего вопроса
+    best_match_index = similarity_scores.argmax()
+    
+    # Проверка порога сходства
+    similarity_threshold = 0.8  # Задайте подходящее значение порога
+    if similarity_scores[0, best_match_index] < similarity_threshold:
+        category = 'Other'
+        answer = 'Redirect to Human'
+    else:
+        # Получение категории и ответа для наиболее похожего вопроса
+        category = kb_data.iloc[best_match_index]['Category']
+        answer = kb_data.iloc[best_match_index]['Answer']
+    
+    return category, answer
 
-    st.write("# Welcome to Streamlit! 👋")
+# Функция для обработки вопросов пользователя
+def process_question(question):
+    category, answer = find_best_answer(question)
+    
+    # Если категория не определена однозначно, задать уточняющий вопрос
+    if category == 'Clarification Needed':
+        clarification = st.text_input("Пожалуйста, уточните ваш вопрос:")
+        if clarification:
+            category, answer = find_best_answer(clarification)
+    
+    # Если ответ не найден, перенаправить запрос живому куратору
+    if answer == 'Redirect to Human':
+        st.write("Извините, я не могу ответить на ваш вопрос. Пожалуйста, обратитесь к живому куратору.")
+    else:
+        st.write(answer)
 
-    st.sidebar.success("Select a demo above.")
+# Интерфейс чат-бота
+st.title("Чат-бот поддержки куратора1")
 
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
-    )
+question = st.text_input("Введите ваш вопрос:")
 
-
-if __name__ == "__main__":
-    run()
+if st.button("Отправить"):
+    process_question(question)
